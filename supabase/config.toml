@@ -1,0 +1,2 @@
+[functions.item-price]
+verify_jwt = false

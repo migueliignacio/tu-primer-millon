@@ -1,39 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
+import { supabase } from "../lib/supabase";
 
 export const fetchItemPrice = async (itemId, signal) => {
-  const apiKey = import.meta.env.VITE_UNDERMINE_APIKEY;
+  const { data, error } = await supabase.functions.invoke("item-price", {
+    body: { itemId },
+    signal,
+  });
 
-  if (!apiKey) {
-    throw new Error("Falta VITE_UNDERMINE_APIKEY en el archivo .env.");
-  }
-
-  const response = await fetch(
-    `https://api.undermine.exchange/v1/region/us/commodities/${encodeURIComponent(
-      itemId,
-    )}/now.json`,
-    {
-      signal,
-      headers: {
-        Authorization: `ApiKey ${apiKey}`,
-        Accept: "application/json",
-      },
-    },
-  );
-
-  if (!response.ok) {
-    throw new Error(
-      `Error al consultar el precio: ${response.status} ${response.statusText}`,
-    );
-  }
-
-  const payload = await response.json();
-  const item = payload.result;
-
-  return {
-    marketValue: item.price,
-    quantity: item.quantity,
-    lastUpdated: item.lastUpdated,
-  };
+  if (error) throw error;
+  return data;
 };
 
 export default function useItem(itemId) {

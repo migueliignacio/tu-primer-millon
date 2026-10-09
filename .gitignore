@@ -23,4 +23,15 @@ dist-ssr
 *.sln
 *.sw?
 
+# Secretos locales (frontend y Edge Functions)
 .env
+.env.*
+!.env.example
+supabase/functions/.env
+supabase/functions/.env.*
+!supabase/functions/.env.example
+
+# Estado local de Supabase CLI
+supabase/.temp/
+supabase/.branches/
+supabase/.profiles/

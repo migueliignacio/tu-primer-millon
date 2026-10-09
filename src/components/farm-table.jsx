@@ -16,7 +16,7 @@ const columns = columnHelper.columns([
       <div className="flex items-center justify-center">
         <img
           src={info.getValue()}
-          alt={info.row.original.itemName}
+          alt={info.row.original.item_name}
           className="w-5 h-5 rounded-sm"
         />
       </div>
@@ -28,11 +28,14 @@ const columns = columnHelper.columns([
   columnHelper.accessor("price", {
     header: "Precio",
     cell: (info) => {
+      const row = info.row.original;
+      if (row.priceStatus === "loading") return "Cargando...";
+      if (row.priceStatus === "error") return "Error al consultar";
       const valueCopper = info.getValue(); // Total en cobre
+      if (valueCopper == null) return "No disponible";
       const Gold = Math.floor(valueCopper / 10000); // oro
       const Silver = Math.floor((valueCopper % 10000) / 100); // plata
-      const Copper = valueCopper % 100;
-      return valueCopper ? `${Gold}g ${Silver}s ${Copper}c` : "No disponible";
+      return `${Gold}g ${Silver}s`;
     },
   }),
   columnHelper.accessor("qty_min", { header: "Cantidad mínima" }),
@@ -45,7 +48,21 @@ const columns = columnHelper.columns([
     header: "Oro/Hora",
     cell: (info) => {
       const row = info.row.original;
-      return (row.price * ((row.qty_min + row.qty_max) / 2)) / 10000;
+      if (row.price == null) return "—";
+      return (
+        <div className="flex items-center justify-center gap-2">
+          <span className="min-w-24 text-right">
+            {((row.price * ((row.qty_min + row.qty_max) / 2)) / 10000).toFixed(
+              0,
+            )}
+          </span>
+          <img
+            src="GoldStack.webp"
+            alt="gold"
+            className="w-5 h-5 rounded-b-sm"
+          />
+        </div>
+      );
     },
   }),
 ]);
@@ -66,12 +83,15 @@ export default function FarmTable() {
   });
 
   const fullMats = materials.map((mat, index) => {
-    const apiData = queries[index]?.data;
+    const query = queries[index];
+    const apiData = query?.data;
+    const marketValue = apiData?.marketValue;
 
     return {
       ...mat,
 
-      price: Math.floor(apiData?.marketValue ?? 0),
+      price: Number.isFinite(marketValue) ? Math.floor(marketValue) : null,
+      priceStatus: query?.isError ? "error" : query?.isPending ? "loading" : "ready",
 
       marketQuantity: apiData?.quantity ?? 0,
 
@@ -84,6 +104,9 @@ export default function FarmTable() {
     columns,
     data: fullMats,
   });
+
+  if (isLoading) return <p>Cargando materiales...</p>;
+  if (isError) return <p>Error al cargar materiales: {error.message}</p>;
 
   return (
     <div className="w-full max-w-7xl h-100 mx-auto">
@@ -106,9 +129,9 @@ export default function FarmTable() {
         </thead>
         <tbody className="bg-red-100 text-black justify-center">
           {table.getRowModel().rows.map((row) => (
-            <tr key={row.id} className="bg-red-100 text-black justify-center">
+            <tr key={row.id} className="bg-slate-100 text-black justify-center">
               {row.getAllCells().map((cell) => (
-                <td key={cell.id} className="bg-red-200 text-black">
+                <td key={cell.id} className="bg-slate-100 text-black">
                   <table.FlexRender cell={cell} />
                 </td>
               ))}
