@@ -4,13 +4,13 @@ import {
   useTable,
 } from "@tanstack/react-table";
 import { useQueries } from "@tanstack/react-query";
-import { localMats } from "../data/mats.js";
+import useMaterials from "../hooks/useMaterials";
 import { fetchItemPrice } from "../hooks/useItem";
 
 const features = tableFeatures({});
 const columnHelper = createColumnHelper();
 const columns = columnHelper.columns([
-  columnHelper.accessor("itemIcon", {
+  columnHelper.accessor("item_icon", {
     header: "",
     cell: (info) => (
       <div className="flex items-center justify-center">
@@ -22,7 +22,7 @@ const columns = columnHelper.columns([
       </div>
     ),
   }),
-  columnHelper.accessor("itemName", {
+  columnHelper.accessor("item_name", {
     header: "Nombre del Material",
   }),
   columnHelper.accessor("price", {
@@ -35,8 +35,8 @@ const columns = columnHelper.columns([
       return valueCopper ? `${Gold}g ${Silver}s ${Copper}c` : "No disponible";
     },
   }),
-  columnHelper.accessor("qtyMin", { header: "Cantidad mínima" }),
-  columnHelper.accessor("qtyMax", { header: "Cantidad máxima" }),
+  columnHelper.accessor("qty_min", { header: "Cantidad mínima" }),
+  columnHelper.accessor("qty_max", { header: "Cantidad máxima" }),
   columnHelper.accessor("solo", {
     header: "Solo",
     cell: (info) => (info.getValue() ? "Si" : "No"),
@@ -45,17 +45,19 @@ const columns = columnHelper.columns([
     header: "Oro/Hora",
     cell: (info) => {
       const row = info.row.original;
-      return (row.price * ((row.qtyMin + row.qtyMax) / 2)) / 10000;
+      return (row.price * ((row.qty_min + row.qty_max) / 2)) / 10000;
     },
   }),
 ]);
 
 export default function FarmTable() {
-  const queries = useQueries({
-    queries: localMats.map((mat) => ({
-      queryKey: ["itemPrice", mat.itemId],
+  const { data: materials = [], isLoading, isError, error } = useMaterials();
 
-      queryFn: ({ signal }) => fetchItemPrice(mat.itemId, signal),
+  const queries = useQueries({
+    queries: materials.map((mat) => ({
+      queryKey: ["itemPrice", mat.item_id],
+
+      queryFn: ({ signal }) => fetchItemPrice(mat.item_id, signal),
 
       staleTime: 30 * 60 * 1000,
 
@@ -63,8 +65,8 @@ export default function FarmTable() {
     })),
   });
 
-  const fullMats = localMats.map((mat, index) => {
-    const apiData = queries[index].data;
+  const fullMats = materials.map((mat, index) => {
+    const apiData = queries[index]?.data;
 
     return {
       ...mat,
@@ -76,6 +78,7 @@ export default function FarmTable() {
       lastUpdated: apiData?.lastUpdated ?? null,
     };
   });
+
   const table = useTable({
     features,
     columns,
