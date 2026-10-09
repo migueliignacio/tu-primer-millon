@@ -16,7 +16,8 @@
     "@tanstack/react-table": "^9.2.6",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "tailwindcss": "^4.3.3"
+    "tailwindcss": "^4.3.3",
+    "tu-primer-millon": "link:"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
