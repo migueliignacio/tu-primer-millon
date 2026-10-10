@@ -8,8 +8,10 @@ function App() {
       <header>
         <AdminLogin />
       </header>
-      <section className="flex min-h-screen bg-neutral-800 text-white">
+      <main>
         <CreateFarmForm />
+      </main>
+      <section className="flex min-h-screen bg-neutral-800 text-white">
         <FarmTable />
       </section>
     </>

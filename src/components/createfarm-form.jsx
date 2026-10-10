@@ -85,14 +85,24 @@ export default function CreateFarmForm() {
   }
 
   return (
-    <div>
+    <div className="bg-neutral-700 text-white">
       <p>Form</p>
       <form onSubmit={handleSubmit}>
         <label>
           ID del objeto:
-          <input name="itemId" type="number" min="1" required />
+          <input
+            className="border"
+            name="itemId"
+            type="number"
+            min="1"
+            required
+          />
         </label>
-        <button type="submit" disabled={loading}>
+        <button
+          className="bg-red-300 cursor-pointer"
+          type="submit"
+          disabled={loading}
+        >
           {loading ? "Buscando..." : "Buscar objeto"}
         </button>
         {error && <p role="alert">{error}</p>}
