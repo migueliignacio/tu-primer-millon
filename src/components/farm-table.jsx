@@ -2,9 +2,11 @@ import { useState } from "react";
 import { createColumnHelper, tableFeatures, useTable } from "@tanstack/react-table";
 import { useQueries } from "@tanstack/react-query";
 import useMaterials from "../hooks/useMaterials";
+import EditFarmForm from "./editfarm-form";
 import { fetchItemPrice } from "../hooks/useItem";
 
 const features = tableFeatures({});
+const PAGE_SIZE = 10;
 const columnHelper = createColumnHelper();
 const columns = columnHelper.columns([
   columnHelper.accessor("item_name", {
@@ -99,12 +101,25 @@ const columns = columnHelper.columns([
   }),
 ]);
 
-export default function FarmTable() {
+export default function FarmTable({ canEdit = false }) {
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(0);
+  const [editingFarm, setEditingFarm] = useState(null);
   const { data: materials = [], isLoading, isError, error } = useMaterials();
 
+  const normalizedSearch = search.trim().toLocaleLowerCase("es-CL");
+  const filteredMaterials = normalizedSearch
+    ? materials.filter((mat) =>
+        mat.item_name?.toLocaleLowerCase("es-CL").includes(normalizedSearch),
+      )
+    : materials;
+  const pageCount = Math.max(1, Math.ceil(filteredMaterials.length / PAGE_SIZE));
+  const currentPage = Math.min(page, pageCount - 1);
+  const firstItem = currentPage * PAGE_SIZE;
+  const visibleMaterials = filteredMaterials.slice(firstItem, firstItem + PAGE_SIZE);
+
   const queries = useQueries({
-    queries: materials.map((mat) => ({
+    queries: visibleMaterials.map((mat) => ({
       queryKey: ["itemPrice", mat.item_id],
 
       queryFn: ({ signal }) => fetchItemPrice(mat.item_id, signal),
@@ -115,7 +130,7 @@ export default function FarmTable() {
     })),
   });
 
-  const fullMats = materials.map((mat, index) => {
+  const visibleRows = visibleMaterials.map((mat, index) => {
     const query = queries[index];
     const apiData = query?.data;
     const marketValue = apiData?.marketValue;
@@ -136,33 +151,37 @@ export default function FarmTable() {
     };
   });
 
-  const normalizedSearch = search.trim().toLocaleLowerCase("es-CL");
-  const filteredMats = normalizedSearch
-    ? fullMats.filter((mat) =>
-        mat.item_name?.toLocaleLowerCase("es-CL").includes(normalizedSearch),
-      )
-    : fullMats;
-
   const table = useTable({
     features,
     columns,
-    data: filteredMats,
+    data: visibleRows,
   });
 
   if (isLoading) return <p>Cargando materiales...</p>;
   if (isError) return <p>Error al cargar materiales: {error.message}</p>;
 
   return (
-    <div className="w-full max-w-7xl h-100 mx-auto">
-      <input
-        type="text"
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        placeholder="Buscar material..."
-        aria-label="Buscar material por nombre"
-        className="bg-neutral-800 text-white px-4 py-2 rounded-md"
-      />
-      <table className="table w-full shadow-2xl text-center">
+    <div className="w-full">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <input
+          type="search"
+          value={search}
+          onChange={(event) => {
+            setSearch(event.target.value);
+            setPage(0);
+          }}
+          placeholder="Buscar material..."
+          aria-label="Buscar material por nombre"
+          className="w-full max-w-sm rounded-md border border-neutral-600 bg-neutral-900 px-4 py-2 text-white placeholder:text-neutral-400 focus:border-amber-400 focus:outline-none"
+        />
+        <p className="text-sm text-neutral-300" aria-live="polite">
+          {filteredMaterials.length === 0
+            ? "0 farmeos"
+            : `Mostrando ${firstItem + 1}–${Math.min(firstItem + PAGE_SIZE, filteredMaterials.length)} de ${filteredMaterials.length} farmeos`}
+        </p>
+      </div>
+      <div className="overflow-x-auto rounded-lg border border-neutral-600 shadow-xl">
+      <table className="w-full min-w-[700px] text-center">
         <thead>
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id}>
@@ -176,13 +195,14 @@ export default function FarmTable() {
                   )}
                 </th>
               ))}
+              {canEdit && <th className="bg-neutral-900 px-2 py-4 text-white">ACCIONES</th>}
             </tr>
           ))}
         </thead>
         <tbody>
           {table.getRowModel().rows.length === 0 && (
             <tr>
-              <td colSpan={columns.length} className="bg-neutral-700 py-4 text-white">
+              <td colSpan={columns.length + (canEdit ? 1 : 0)} className="bg-neutral-700 py-4 text-white">
                 {normalizedSearch ? "No se encontraron materiales." : "No hay materiales."}
               </td>
             </tr>
@@ -197,10 +217,24 @@ export default function FarmTable() {
                   <table.FlexRender cell={cell} />
                 </td>
               ))}
+              {canEdit && (
+                <td className="bg-neutral-700 px-2 py-2">
+                  <button type="button" onClick={() => setEditingFarm(row.original)} className="rounded bg-amber-500 px-3 py-1 font-bold text-neutral-950">Editar</button>
+                </td>
+              )}
             </tr>
           ))}
         </tbody>
       </table>
+      </div>
+      {filteredMaterials.length > 0 && (
+        <nav aria-label="Paginación de farmeos" className="mt-5 flex flex-wrap items-center justify-center gap-3">
+          <button type="button" onClick={() => setPage(currentPage - 1)} disabled={currentPage === 0} className="rounded border border-neutral-500 bg-neutral-700 px-4 py-2 text-white disabled:cursor-not-allowed disabled:opacity-40">Anterior</button>
+          <span className="min-w-28 text-center" aria-live="polite">Página {currentPage + 1} de {pageCount}</span>
+          <button type="button" onClick={() => setPage(currentPage + 1)} disabled={currentPage >= pageCount - 1} className="rounded border border-neutral-500 bg-neutral-700 px-4 py-2 text-white disabled:cursor-not-allowed disabled:opacity-40">Siguiente</button>
+        </nav>
+      )}
+      {canEdit && editingFarm && <EditFarmForm key={editingFarm.id} farm={editingFarm} onClose={() => setEditingFarm(null)} />}
     </div>
   );
 }
