@@ -80,26 +80,26 @@ export default function CreateFarmForm() {
   }
 
   return (
-    <div className="rounded-lg bg-neutral-700 p-5 shadow-lg">
+    <div className="rounded-lg bg-slate p-5 shadow-lg">
       <h2 className="mb-4 text-xl font-bold">Ingresar material</h2>
       <form onSubmit={handleSearch} className="flex flex-wrap items-end gap-3">
         <label className="flex flex-col gap-1">ID del objeto
-          <input name="itemId" type="number" min="1" step="1" required value={itemIdInput} onChange={(event) => { setItemIdInput(event.target.value); setMetadata(null); setSaved(false); setError(""); }} className="rounded border border-neutral-500 bg-neutral-900 px-3 py-2 text-white" />
+          <input name="itemId" type="number" min="1" step="1" required value={itemIdInput} onChange={(event) => { setItemIdInput(event.target.value); setMetadata(null); setSaved(false); setError(""); }} className="rounded border border-green/60 bg-fondo px-3 py-2 text-dorado" />
         </label>
-        <button type="submit" disabled={loading || saving} className="rounded bg-amber-500 px-4 py-2 font-bold text-neutral-950 disabled:opacity-50">{loading ? "Buscando..." : "Buscar objeto"}</button>
+        <button type="submit" disabled={loading || saving} className="rounded bg-dorado px-4 py-2 font-bold text-fondo disabled:opacity-50">{loading ? "Buscando..." : "Buscar objeto"}</button>
       </form>
       {metadata && (
         <form onSubmit={handleSave} className="mt-5 space-y-4">
           <div className="flex items-center gap-3">
             {metadata.icon && <img src={metadata.icon} alt="" width="40" height="40" />}
-            <div><p className="font-bold">{metadata.name}</p><p className="text-sm text-neutral-300">ID: {metadata.itemId}</p></div>
+            <div><p className="font-bold">{metadata.name}</p><p className="text-sm text-dorado/75">ID: {metadata.itemId}</p></div>
           </div>
           <div className="flex flex-wrap gap-3">
-            <label className="flex flex-col gap-1">Cantidad mínima<input name="qtyMin" type="number" min="0" step="1" required className="rounded border border-neutral-500 bg-neutral-900 px-3 py-2 text-white" /></label>
-            <label className="flex flex-col gap-1">Cantidad máxima<input name="qtyMax" type="number" min="0" step="1" required className="rounded border border-neutral-500 bg-neutral-900 px-3 py-2 text-white" /></label>
+            <label className="flex flex-col gap-1">Cantidad mínima<input name="qtyMin" type="number" min="0" step="1" required className="rounded border border-green/60 bg-fondo px-3 py-2 text-dorado" /></label>
+            <label className="flex flex-col gap-1">Cantidad máxima<input name="qtyMax" type="number" min="0" step="1" required className="rounded border border-green/60 bg-fondo px-3 py-2 text-dorado" /></label>
             <label className="flex items-center gap-2 self-end pb-2"><input name="solo" type="checkbox" /> Solo</label>
           </div>
-          <button type="submit" disabled={saving} className="rounded bg-green-600 px-4 py-2 font-bold disabled:opacity-50">{saving ? "Guardando..." : "Guardar farmeo"}</button>
+          <button type="submit" disabled={saving} className="rounded bg-dorado px-4 py-2 font-bold text-fondo disabled:opacity-50">{saving ? "Guardando..." : "Guardar farmeo"}</button>
         </form>
       )}
       {error && <p role="alert" className="mt-3 text-red-300">{error}</p>}

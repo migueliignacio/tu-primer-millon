@@ -1,6 +1,15 @@
 @import "@fontsource-variable/inconsolata";
 @import "tailwindcss";
 
+@theme {
+  --color-fondo: #20212b;
+  --color-dorado: #fed7a5;
+  --color-dorado-fuerte: #f4c055;
+  --color-orange: #9e6752;
+  --color-green: #73766a;
+  --color-slate: #2d4354;
+}
+
 :root {
   --text: #6b6375;
   --text-h: #08060d;
@@ -21,14 +30,6 @@
   font: 18px/145% var(--sans);
   letter-spacing: 0.18px;
   color-scheme: dark;
-  color: var(--text);
-  background: #262626;
-}
-
-html, body, #root {
-  min-height: 100%;
-}
-
-body {
-  margin: 0;
+  color: var(--color-dorado);
+  background: var(--color-fondo);
 }

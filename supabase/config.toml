@@ -1,2 +1,5 @@
 [functions.item-price]
 verify_jwt = false
+
+[functions.token-price]
+verify_jwt = false

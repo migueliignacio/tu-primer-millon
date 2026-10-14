@@ -1,5 +1,9 @@
 import { useState } from "react";
-import { createColumnHelper, tableFeatures, useTable } from "@tanstack/react-table";
+import {
+  createColumnHelper,
+  tableFeatures,
+  useTable,
+} from "@tanstack/react-table";
 import { useQueries } from "@tanstack/react-query";
 import useMaterials from "../hooks/useMaterials";
 import EditFarmForm from "./editfarm-form";
@@ -21,7 +25,7 @@ const columns = columnHelper.columns([
             alt={info.row.original.item_name}
             className="w-5 h-5 rounded-sm"
           />
-          <p className="group-hover:text-yellow-300">
+          <p className="group-hover:text-dorado">
             {info.row.original.item_name}
           </p>
         </div>
@@ -40,13 +44,13 @@ const columns = columnHelper.columns([
       const Silver = Math.floor((valueCopper % 10000) / 100); // plata
       return (
         <div className="">
-          <span className="text-yellow-200">
+          <span className="text-dorado">
             {Gold}
-            <span className="text-yellow-500">g</span>
+            <span className="text-dorado-fuerte">g</span>
           </span>{" "}
-          <span className="text-zinc-300">
+          <span className="text-dorado/75">
             {Silver}
-            <span className="text-zinc-400">s</span>
+            <span className="text-dorado/55">s</span>
           </span>
         </div>
       );
@@ -57,7 +61,7 @@ const columns = columnHelper.columns([
     cell: (info) => {
       return (
         <div>
-          <span className="text-neutral-300">{info.getValue()}</span>
+          <span className="text-dorado/75">{info.getValue()}</span>
         </div>
       );
     },
@@ -67,7 +71,7 @@ const columns = columnHelper.columns([
     cell: (info) => {
       return (
         <div>
-          <span className="text-neutral-300">{info.getValue()}</span>
+          <span className="text-dorado/75">{info.getValue()}</span>
         </div>
       );
     },
@@ -85,7 +89,7 @@ const columns = columnHelper.columns([
 
       return (
         <div className="flex items-center justify-center gap-2">
-          <span className="min-w-24 text-right text-amber-200">
+          <span className="min-w-24 text-right text-dorado">
             {new Intl.NumberFormat("es-CL", {
               maximumFractionDigits: 0,
             }).format((row.price * ((row.qty_min + row.qty_max) / 2)) / 10000)}
@@ -113,10 +117,16 @@ export default function FarmTable({ canEdit = false }) {
         mat.item_name?.toLocaleLowerCase("es-CL").includes(normalizedSearch),
       )
     : materials;
-  const pageCount = Math.max(1, Math.ceil(filteredMaterials.length / PAGE_SIZE));
+  const pageCount = Math.max(
+    1,
+    Math.ceil(filteredMaterials.length / PAGE_SIZE),
+  );
   const currentPage = Math.min(page, pageCount - 1);
   const firstItem = currentPage * PAGE_SIZE;
-  const visibleMaterials = filteredMaterials.slice(firstItem, firstItem + PAGE_SIZE);
+  const visibleMaterials = filteredMaterials.slice(
+    firstItem,
+    firstItem + PAGE_SIZE,
+  );
 
   const queries = useQueries({
     queries: visibleMaterials.map((mat) => ({
@@ -172,69 +182,107 @@ export default function FarmTable({ canEdit = false }) {
           }}
           placeholder="Buscar material..."
           aria-label="Buscar material por nombre"
-          className="w-full max-w-sm rounded-md border border-neutral-600 bg-neutral-900 px-4 py-2 text-white placeholder:text-neutral-400 focus:border-amber-400 focus:outline-none"
+          className="w-full max-w-sm rounded-md border border-green/50 bg-fondo px-4 py-2 text-dorado placeholder:text-dorado/55 focus:border-dorado focus:outline-none"
         />
-        <p className="text-sm text-neutral-300" aria-live="polite">
+        <p className="text-sm text-dorado/75" aria-live="polite">
           {filteredMaterials.length === 0
             ? "0 farmeos"
             : `Mostrando ${firstItem + 1}–${Math.min(firstItem + PAGE_SIZE, filteredMaterials.length)} de ${filteredMaterials.length} farmeos`}
         </p>
       </div>
-      <div className="overflow-x-auto rounded-lg border border-neutral-600 shadow-xl">
-      <table className="w-full min-w-[700px] text-center">
-        <thead>
-          {table.getHeaderGroups().map((headerGroup) => (
-            <tr key={headerGroup.id}>
-              {headerGroup.headers.map((header) => (
-                <th
-                  key={header.id}
-                  className="bg-neutral-900 px-2 py-4 text-white"
-                >
-                  {header.isPlaceholder ? null : (
-                    <table.FlexRender header={header} />
-                  )}
-                </th>
-              ))}
-              {canEdit && <th className="bg-neutral-900 px-2 py-4 text-white">ACCIONES</th>}
-            </tr>
-          ))}
-        </thead>
-        <tbody>
-          {table.getRowModel().rows.length === 0 && (
-            <tr>
-              <td colSpan={columns.length + (canEdit ? 1 : 0)} className="bg-neutral-700 py-4 text-white">
-                {normalizedSearch ? "No se encontraron materiales." : "No hay materiales."}
-              </td>
-            </tr>
-          )}
-          {table.getRowModel().rows.map((row) => (
-            <tr key={row.id} className="group">
-              {row.getAllCells().map((cell) => (
+      <div className="overflow-x-auto rounded-lg border border-green/50 shadow-xl">
+        <table className="w-full min-w-[700px] text-center">
+          <thead>
+            {table.getHeaderGroups().map((headerGroup) => (
+              <tr key={headerGroup.id}>
+                {headerGroup.headers.map((header) => (
+                  <th
+                    key={header.id}
+                    className="bg-fondo px-2 py-4 text-dorado"
+                  >
+                    {header.isPlaceholder ? null : (
+                      <table.FlexRender header={header} />
+                    )}
+                  </th>
+                ))}
+                {canEdit && (
+                  <th className="bg-fondo px-2 py-4 text-dorado">ACCIONES</th>
+                )}
+              </tr>
+            ))}
+          </thead>
+          <tbody>
+            {table.getRowModel().rows.length === 0 && (
+              <tr>
                 <td
-                  key={cell.id}
-                  className="bg-neutral-700 text-white py-2 group-hover:bg-neutral-600 transition-colors duration-150"
+                  colSpan={columns.length + (canEdit ? 1 : 0)}
+                  className="bg-slate py-4 text-dorado"
                 >
-                  <table.FlexRender cell={cell} />
+                  {normalizedSearch
+                    ? "No se encontraron materiales."
+                    : "No hay materiales."}
                 </td>
-              ))}
-              {canEdit && (
-                <td className="bg-neutral-700 px-2 py-2">
-                  <button type="button" onClick={() => setEditingFarm(row.original)} className="rounded bg-amber-500 px-3 py-1 font-bold text-neutral-950">Editar</button>
-                </td>
-              )}
-            </tr>
-          ))}
-        </tbody>
-      </table>
+              </tr>
+            )}
+            {table.getRowModel().rows.map((row) => (
+              <tr key={row.id} className="group">
+                {row.getAllCells().map((cell) => (
+                  <td
+                    key={cell.id}
+                    className="bg-slate text-dorado py-2 group-hover:bg-green/30 transition-colors duration-150"
+                  >
+                    <table.FlexRender cell={cell} />
+                  </td>
+                ))}
+                {canEdit && (
+                  <td className="bg-slate px-2 py-2">
+                    <button
+                      type="button"
+                      onClick={() => setEditingFarm(row.original)}
+                      className="rounded bg-dorado px-3 py-1 font-bold text-fondo"
+                    >
+                      Editar
+                    </button>
+                  </td>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
       {filteredMaterials.length > 0 && (
-        <nav aria-label="Paginación de farmeos" className="mt-5 flex flex-wrap items-center justify-center gap-3">
-          <button type="button" onClick={() => setPage(currentPage - 1)} disabled={currentPage === 0} className="rounded border border-neutral-500 bg-neutral-700 px-4 py-2 text-white disabled:cursor-not-allowed disabled:opacity-40">Anterior</button>
-          <span className="min-w-28 text-center" aria-live="polite">Página {currentPage + 1} de {pageCount}</span>
-          <button type="button" onClick={() => setPage(currentPage + 1)} disabled={currentPage >= pageCount - 1} className="rounded border border-neutral-500 bg-neutral-700 px-4 py-2 text-white disabled:cursor-not-allowed disabled:opacity-40">Siguiente</button>
+        <nav
+          aria-label="Paginación de farmeos"
+          className="mt-5 flex flex-wrap items-center justify-center gap-3"
+        >
+          <button
+            type="button"
+            onClick={() => setPage(currentPage - 1)}
+            disabled={currentPage === 0}
+            className="rounded border border-green/60 cursor-pointer bg-slate px-4 py-2 text-dorado disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Anterior
+          </button>
+          <span className="min-w-28 text-center" aria-live="polite">
+            Página {currentPage + 1} de {pageCount}
+          </span>
+          <button
+            type="button"
+            onClick={() => setPage(currentPage + 1)}
+            disabled={currentPage >= pageCount - 1}
+            className="rounded border border-green/60 cursor-pointer bg-slate px-4 py-2 text-dorado disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Siguiente
+          </button>
         </nav>
       )}
-      {canEdit && editingFarm && <EditFarmForm key={editingFarm.id} farm={editingFarm} onClose={() => setEditingFarm(null)} />}
+      {canEdit && editingFarm && (
+        <EditFarmForm
+          key={editingFarm.id}
+          farm={editingFarm}
+          onClose={() => setEditingFarm(null)}
+        />
+      )}
     </div>
   );
 }
