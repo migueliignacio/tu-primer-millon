@@ -11,19 +11,19 @@ export default function TokenCard() {
 
   return (
     <section className="rounded-2xl border border-orange/50 bg-slate p-5 shadow-xl">
-      <h2 className="text-sm font-semibold uppercase tracking-wide text-dorado/75">
+      <h2 className="text-md font-semibold uppercase tracking-wide text-dorado">
         Ficha WoW · US
       </h2>
       {isPending ? (
-        <p role="status" className="mt-3 text-sm text-dorado/70">
+        <p role="status" className="mt-2 text-sm text-dorado/70">
           Consultando ficha...
         </p>
       ) : isError ? (
-        <p role="alert" className="mt-3 text-sm text-red-300">
+        <p role="alert" className="mt-2 text-sm text-red-300">
           No se pudo consultar la API.
         </p>
       ) : (
-        <div className="mt-3">
+        <div className="mt-2">
           <p className="text-3xl font-bold text-dorado">
             {gold ?? "—"}
             <span className="ml-1 text-base text-dorado-fuerte">g</span>

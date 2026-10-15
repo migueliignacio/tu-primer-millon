@@ -1,288 +1,147 @@
 import { useState } from "react";
-import {
-  createColumnHelper,
-  tableFeatures,
-  useTable,
-} from "@tanstack/react-table";
-import { useQueries } from "@tanstack/react-query";
-import useMaterials from "../hooks/useMaterials";
-import EditFarmForm from "./editfarm-form";
+import { useQueries, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "../lib/supabase";
+import useFarms from "../hooks/useFarms";
 import { fetchItemPrice } from "../hooks/useItem";
+import EditFarmForm from "./editfarm-form";
+import FarmDetails from "./farm-details";
 
-const features = tableFeatures({});
 const PAGE_SIZE = 10;
-const columnHelper = createColumnHelper();
-const columns = columnHelper.columns([
-  columnHelper.accessor("item_name", {
-    header: () => (
-      <div className="text-left w-full pl-2">NOMBRE DEL MATERIAL</div>
-    ),
-    cell: (info) => {
-      return (
-        <div className="flex mx-4 gap-2 items-center">
-          <img
-            src={info.row.original.item_icon}
-            alt={info.row.original.item_name}
-            className="w-5 h-5 rounded-sm"
-          />
-          <p className="group-hover:text-dorado">
-            {info.row.original.item_name}
-          </p>
-        </div>
-      );
-    },
-  }),
-  columnHelper.accessor("price", {
-    header: "PRECIO",
-    cell: (info) => {
-      const row = info.row.original;
-      if (row.priceStatus === "loading") return "Cargando...";
-      if (row.priceStatus === "error") return "Error al consultar";
-      const valueCopper = info.getValue(); // Total en cobre
-      if (valueCopper == null) return "No disponible";
-      const Gold = Math.floor(valueCopper / 10000); // oro
-      const Silver = Math.floor((valueCopper % 10000) / 100); // plata
-      return (
-        <div className="">
-          <span className="text-dorado">
-            {Gold}
-            <span className="text-dorado-fuerte">g</span>
-          </span>{" "}
-          <span className="text-dorado/75">
-            {Silver}
-            <span className="text-dorado/55">s</span>
-          </span>
-        </div>
-      );
-    },
-  }),
-  columnHelper.accessor("qty_min", {
-    header: "CANTIDAD MÍNIMA",
-    cell: (info) => {
-      return (
-        <div>
-          <span className="text-dorado/75">{info.getValue()}</span>
-        </div>
-      );
-    },
-  }),
-  columnHelper.accessor("qty_max", {
-    header: "CANTIDAD MÁXIMA",
-    cell: (info) => {
-      return (
-        <div>
-          <span className="text-dorado/75">{info.getValue()}</span>
-        </div>
-      );
-    },
-  }),
-  columnHelper.accessor("solo", {
-    header: "SOLO",
-    cell: (info) => (info.getValue() ? "Si" : "No"),
-  }),
-  columnHelper.accessor("goldXhour", {
-    header: "ORO/HORA",
-    cell: (info) => {
-      const row = info.row.original;
-
-      if (row.price == null) return "—";
-
-      return (
-        <div className="flex items-center justify-center gap-2">
-          <span className="min-w-24 text-right text-dorado">
-            {new Intl.NumberFormat("es-CL", {
-              maximumFractionDigits: 0,
-            }).format((row.price * ((row.qty_min + row.qty_max) / 2)) / 10000)}
-          </span>
-          <img
-            src="GoldStack.webp"
-            alt="gold"
-            className="w-5 h-5 rounded-b-sm"
-          />
-        </div>
-      );
-    },
-  }),
-]);
+const formatGold = (value) => new Intl.NumberFormat("es-CL", {
+  maximumFractionDigits: 0,
+}).format(value);
 
 export default function FarmTable({ canEdit = false }) {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
-  const [editingFarm, setEditingFarm] = useState(null);
-  const { data: materials = [], isLoading, isError, error } = useMaterials();
+  const [editingId, setEditingId] = useState(null);
+  const [detailsId, setDetailsId] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
+  const [actionError, setActionError] = useState("");
+  const queryClient = useQueryClient();
+  const { data: farms = [], isLoading, isError, error } = useFarms();
 
-  const normalizedSearch = search.trim().toLocaleLowerCase("es-CL");
-  const filteredMaterials = normalizedSearch
-    ? materials.filter((mat) =>
-        mat.item_name?.toLocaleLowerCase("es-CL").includes(normalizedSearch),
-      )
-    : materials;
-  const pageCount = Math.max(
-    1,
-    Math.ceil(filteredMaterials.length / PAGE_SIZE),
-  );
+  const needle = search.trim().toLocaleLowerCase("es-CL");
+  const filtered = needle
+    ? farms.filter((farm) => farm.name.toLocaleLowerCase("es-CL").includes(needle) ||
+        farm.farm_materials.some((material) => material.item_name.toLocaleLowerCase("es-CL").includes(needle)))
+    : farms;
+  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const currentPage = Math.min(page, pageCount - 1);
   const firstItem = currentPage * PAGE_SIZE;
-  const visibleMaterials = filteredMaterials.slice(
-    firstItem,
-    firstItem + PAGE_SIZE,
-  );
-
-  const queries = useQueries({
-    queries: visibleMaterials.map((mat) => ({
-      queryKey: ["itemPrice", mat.item_id],
-
-      queryFn: ({ signal }) => fetchItemPrice(mat.item_id, signal),
-
+  const visible = filtered.slice(firstItem, firstItem + PAGE_SIZE);
+  const itemIds = [...new Set(visible.flatMap((farm) => farm.farm_materials.map((material) => material.item_id)))];
+  const priceQueries = useQueries({
+    queries: itemIds.map((itemId) => ({
+      queryKey: ["itemPrice", itemId],
+      queryFn: ({ signal }) => fetchItemPrice(itemId, signal),
       staleTime: 30 * 60 * 1000,
-
       refetchInterval: 30 * 60 * 1000,
     })),
   });
+  const priceByItemId = new Map(itemIds.map((itemId, index) => [itemId, priceQueries[index]]));
+  const editingFarm = farms.find((farm) => farm.id === editingId);
+  const detailsFarm = visible.find((farm) => farm.id === detailsId);
 
-  const visibleRows = visibleMaterials.map((mat, index) => {
-    const query = queries[index];
-    const apiData = query?.data;
-    const marketValue = apiData?.marketValue;
+  async function handleDelete(farm) {
+    if (!window.confirm(`¿Borrar el farmeo "${farm.name}" y todos sus materiales? Esta acción no se puede deshacer.`)) return;
+    setDeletingId(farm.id);
+    setActionError("");
+    try {
+      const { data, error: deleteError } = await supabase.from("farms").delete().eq("id", farm.id).select("id").maybeSingle();
+      if (deleteError) throw deleteError;
+      if (!data) throw new Error("No se pudo borrar el farmeo o no tienes permiso.");
+      if (editingId === farm.id) setEditingId(null);
+      if (detailsId === farm.id) setDetailsId(null);
+      await queryClient.invalidateQueries({ queryKey: ["farms"] });
+    } catch (deleteError) {
+      setActionError(deleteError.message || "No se pudo borrar el farmeo.");
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
-    return {
-      ...mat,
-
-      price: Number.isFinite(marketValue) ? Math.floor(marketValue) : null,
-      priceStatus: query?.isError
-        ? "error"
-        : query?.isPending
-          ? "loading"
-          : "ready",
-
-      marketQuantity: apiData?.quantity ?? 0,
-
-      lastUpdated: apiData?.lastUpdated ?? null,
-    };
-  });
-
-  const table = useTable({
-    features,
-    columns,
-    data: visibleRows,
-  });
-
-  if (isLoading) return <p>Cargando materiales...</p>;
-  if (isError) return <p>Error al cargar materiales: {error.message}</p>;
+  if (isLoading) return <p>Cargando farmeos...</p>;
+  if (isError) return <p role="alert">Error al cargar farmeos: {error.message}</p>;
 
   return (
-    <div className="w-full">
+    <section className="w-full">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <input
-          type="search"
-          value={search}
-          onChange={(event) => {
-            setSearch(event.target.value);
-            setPage(0);
-          }}
-          placeholder="Buscar material..."
-          aria-label="Buscar material por nombre"
-          className="w-full max-w-sm rounded-md border border-green/50 bg-fondo px-4 py-2 text-dorado placeholder:text-dorado/55 focus:border-dorado focus:outline-none"
-        />
+        <input type="search" value={search} onChange={(event) => { setSearch(event.target.value); setPage(0); setDetailsId(null); }}
+          placeholder="Buscar farmeo o material..." aria-label="Buscar farmeo o material"
+          className="w-full max-w-sm rounded-md border border-green/50 bg-fondo px-4 py-2 text-dorado placeholder:text-dorado/55 focus:border-dorado focus:outline-none" />
         <p className="text-sm text-dorado/75" aria-live="polite">
-          {filteredMaterials.length === 0
-            ? "0 farmeos"
-            : `Mostrando ${firstItem + 1}–${Math.min(firstItem + PAGE_SIZE, filteredMaterials.length)} de ${filteredMaterials.length} farmeos`}
+          {filtered.length === 0 ? "0 farmeos" : `Mostrando ${firstItem + 1}–${Math.min(firstItem + PAGE_SIZE, filtered.length)} de ${filtered.length} farmeos`}
         </p>
       </div>
+      {actionError && <p role="alert" className="mb-3 text-red-300">{actionError}</p>}
       <div className="overflow-x-auto rounded-lg border border-green/50 shadow-xl">
-        <table className="w-full min-w-[700px] text-center">
-          <thead>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <tr key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <th
-                    key={header.id}
-                    className="bg-fondo px-2 py-4 text-dorado"
-                  >
-                    {header.isPlaceholder ? null : (
-                      <table.FlexRender header={header} />
-                    )}
-                  </th>
-                ))}
-                {canEdit && (
-                  <th className="bg-fondo px-2 py-4 text-dorado">ACCIONES</th>
-                )}
-              </tr>
-            ))}
+        <table className="w-full min-w-[700px] text-left">
+          <thead className="bg-fondo text-dorado">
+            <tr>
+              <th scope="col" className="px-4 py-4">FARMEO</th>
+              <th scope="col" className="px-4 py-4">MATERIALES</th>
+              <th scope="col" className="px-4 py-4">SOLO</th>
+              <th scope="col" className="px-4 py-4">ORO/HORA</th>
+              {canEdit && <th scope="col" className="px-4 py-4">ACCIONES</th>}
+            </tr>
           </thead>
           <tbody>
-            {table.getRowModel().rows.length === 0 && (
-              <tr>
-                <td
-                  colSpan={columns.length + (canEdit ? 1 : 0)}
-                  className="bg-slate py-4 text-dorado"
-                >
-                  {normalizedSearch
-                    ? "No se encontraron materiales."
-                    : "No hay materiales."}
-                </td>
-              </tr>
+            {visible.length === 0 && (
+              <tr><td colSpan={canEdit ? 5 : 4} className="bg-slate px-4 py-5">
+                {needle ? "No se encontraron farmeos." : "No hay farmeos."}
+              </td></tr>
             )}
-            {table.getRowModel().rows.map((row) => (
-              <tr key={row.id} className="group">
-                {row.getAllCells().map((cell) => (
-                  <td
-                    key={cell.id}
-                    className="bg-slate text-dorado py-2 group-hover:bg-green/30 transition-colors duration-150"
-                  >
-                    <table.FlexRender cell={cell} />
-                  </td>
-                ))}
-                {canEdit && (
-                  <td className="bg-slate px-2 py-2">
-                    <button
-                      type="button"
-                      onClick={() => setEditingFarm(row.original)}
-                      className="rounded bg-dorado px-3 py-1 font-bold text-fondo"
-                    >
-                      Editar
+            {visible.map((farm) => {
+              const prices = farm.farm_materials.map((material) => {
+                const query = priceByItemId.get(material.item_id);
+                return Number.isFinite(query?.data?.marketValue) ? Math.floor(query.data.marketValue) : null;
+              });
+              const total = farm.farm_materials.length > 0 && prices.every((price) => price !== null)
+                ? farm.farm_materials.reduce((sum, material, index) =>
+                    sum + prices[index] * ((material.qty_min + material.qty_max) / 2) / 10000, 0)
+                : null;
+              return (
+                <tr key={farm.id} className="border-t border-green/30 bg-slate text-dorado hover:bg-green/20">
+                  <th scope="row" className="px-4 py-4 font-semibold">
+                    <button type="button" onClick={() => setDetailsId(farm.id)} className="text-left hover:text-dorado-fuerte hover:underline focus-visible:rounded focus-visible:outline-2 focus-visible:outline-dorado-fuerte" aria-label={`Ver detalles de ${farm.name}`}>{farm.name}</button>
+                  </th>
+                  <td className="px-4 py-3">
+                    <button type="button" onClick={() => setDetailsId(farm.id)} className="flex items-center gap-2 rounded text-left text-sm hover:text-dorado-fuerte hover:underline focus-visible:outline-2 focus-visible:outline-dorado-fuerte" aria-label={`Ver materiales de ${farm.name}`}>
+                      {farm.farm_materials[0]?.item_icon && <img src={farm.farm_materials[0].item_icon} alt="" className="h-6 w-6 shrink-0 rounded" />}
+                      <span>{farm.farm_materials.length === 0 ? "Sin materiales" : farm.farm_materials[0].item_name}</span>
+                      {farm.farm_materials.length > 1 && <span className="whitespace-nowrap text-dorado/70">+{farm.farm_materials.length - 1} más</span>}
+                      <span className="whitespace-nowrap text-dorado/70">· Ver detalles</span>
                     </button>
                   </td>
-                )}
-              </tr>
-            ))}
+                  <td className="px-4 py-4">{farm.solo ? "Sí" : "No"}</td>
+                  <td className="px-4 py-4 font-bold">{total === null ? "—" : (
+                    <span className="flex items-center gap-2">
+                      <span>{formatGold(total)}</span>
+                      <img src="/GoldStack.webp" alt="" className="h-5 w-5 rounded-b-sm" />
+                    </span>
+                  )}</td>
+                  {canEdit && <td className="px-4 py-4">
+                    <div className="flex flex-wrap gap-2">
+                      <button type="button" onClick={() => setEditingId(farm.id)} className="rounded bg-dorado px-3 py-1 font-bold text-fondo">Editar</button>
+                      <button type="button" onClick={() => handleDelete(farm)} disabled={deletingId !== null} className="rounded border border-red-300/60 px-3 py-1 text-red-200 disabled:opacity-50">
+                        {deletingId === farm.id ? "Borrando..." : "Borrar"}
+                      </button>
+                    </div>
+                  </td>}
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
-      {filteredMaterials.length > 0 && (
-        <nav
-          aria-label="Paginación de farmeos"
-          className="mt-5 flex flex-wrap items-center justify-center gap-3"
-        >
-          <button
-            type="button"
-            onClick={() => setPage(currentPage - 1)}
-            disabled={currentPage === 0}
-            className="rounded border border-green/60 cursor-pointer bg-slate px-4 py-2 text-dorado disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            Anterior
-          </button>
-          <span className="min-w-28 text-center" aria-live="polite">
-            Página {currentPage + 1} de {pageCount}
-          </span>
-          <button
-            type="button"
-            onClick={() => setPage(currentPage + 1)}
-            disabled={currentPage >= pageCount - 1}
-            className="rounded border border-green/60 cursor-pointer bg-slate px-4 py-2 text-dorado disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            Siguiente
-          </button>
-        </nav>
-      )}
-      {canEdit && editingFarm && (
-        <EditFarmForm
-          key={editingFarm.id}
-          farm={editingFarm}
-          onClose={() => setEditingFarm(null)}
-        />
-      )}
-    </div>
+      {filtered.length > 0 && <nav aria-label="Paginación de farmeos" className="mt-5 flex flex-wrap items-center justify-center gap-3">
+        <button type="button" onClick={() => { setPage(currentPage - 1); setDetailsId(null); }} disabled={currentPage === 0} className="rounded border border-green/60 bg-slate px-4 py-2 disabled:opacity-40">Anterior</button>
+        <span aria-live="polite">Página {currentPage + 1} de {pageCount}</span>
+        <button type="button" onClick={() => { setPage(currentPage + 1); setDetailsId(null); }} disabled={currentPage >= pageCount - 1} className="rounded border border-green/60 bg-slate px-4 py-2 disabled:opacity-40">Siguiente</button>
+      </nav>}
+      {detailsFarm && <FarmDetails farm={detailsFarm} priceByItemId={priceByItemId} onClose={() => setDetailsId(null)} />}
+      {canEdit && editingFarm && <EditFarmForm key={editingFarm.id} farm={editingFarm} onClose={() => setEditingId(null)} />}
+    </section>
   );
 }
